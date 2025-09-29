@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gioco della Spia</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            background-color: #222;
+            color: #eee;
+            text-align: center;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background-color: #333;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+            max-width: 90%;
+            width: 400px;
+        }
+        h1 {
+            color: #4CAF50;
+            font-size: 2em;
+        }
+        input, button {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: none;
+            box-sizing: border-box;
+            font-size: 1.2em;
+        }
+        input[type="number"] {
+            background-color: #444;
+            color: #fff;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .role-text {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #f0f0f0;
+        }
+        .role-text.spy {
+            color: #FF4500;
+        }
+        .word-display {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #FFA500;
+            margin-top: 15px;
+        }
+        .category-display {
+            font-size: 1.5em;
+            color: #87CEEB;
+        }
+        .player-info {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        #intro-screen, #game-screen, #role-screen, #start-timer-screen, #timer-screen, #end-screen {
+            display: none;
+        }
+        #timer-display {
+            font-size: 3em;
+            font-weight: bold;
+            color: #fff;
+            margin: 20px 0;
+        }
+        .spy-list {
+            list-style-type: none;
+            padding: 0;
+        }
+        .spy-list li {
+            font-size: 1.5em;
+            color: #FF4500;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .category-list {
+            text-align: left;
+            margin-top: 15px;
+        }
+        .category-list label {
+            display: flex;
+            align-items: center; /* Allinea verticalmente checkbox e testo */
+            margin-bottom: 5px;
+        }
+        .category-list input[type="checkbox"] {
+            width: auto;
+            margin-right: 10px; /* Spazio tra checkbox e testo */
+        }
+        /* piccolo messaggio di supporto Wake Lock (nascosto se non serve) */
+        #wakelock-warning {
+            display: none;
+            margin-top: 8px;
+            font-size: 0.9em;
+            color: #ffcc00;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container" id="intro-screen">
+    <h1>Gioco della Spia</h1>
+    <p>Inserisci il numero di giocatori e quante spie volete avere.</p>
+    <input type="number" id="numPlayers" placeholder="Numero di giocatori" min="2" required>
+    <input type="number" id="numSpies" placeholder="Numero di spie" min="1" required>
+    <div style="margin-top: 20px;">
+        <p>Durata discussione (minuti):</p>
+        <input type="number" id="timerDuration" placeholder="Durata in minuti" min="1" required>
+    </div>
+    <div class="category-list">
+        <p>Scegli le categorie:</p>
+        <label><input type="checkbox" name="category" value="Luoghi" checked> Luoghi</label>
+        <label><input type="checkbox" name="category" value="Animali" checked> Animali</label>
+        <label><input type="checkbox" name="category" value="Cibo" checked> Cibo</label>
+        <label><input type="checkbox" name="category" value="Oggetti" checked> Oggetti</label>
+        <label><input type="checkbox" name="category" value="Natura" checked> Natura</label>
+        <label><input type="checkbox" name="category" value="Sport" checked> Sport</label>
+        <label><input type="checkbox" name="category" value="Mare" checked> Mare</label>
+    </div>
+    <button onclick="startGame()">Inizia il gioco</button>
+</div>
+
+<div class="container" id="game-screen">
+    <p class="player-info">Passa il telefono a <span id="currentPlayerText"></span>.</p>
+    <button onclick="showRole()">Mostra il mio ruolo</button>
+</div>
+
+<div class="container" id="role-screen">
+    <p class="player-info"><span id="currentRolePlayerText"></span></p>
+    <p id="roleTitle" class="role-text"></p>
+    <p id="roleDetails"></p>
+    <button onclick="hideRole()">Nascondi e passa</button>
+</div>
+
+<div class="container" id="start-timer-screen">
+    <p>Tutti i giocatori hanno visto il loro ruolo. La discussione può iniziare.</p>
+    <div id="wakelock-warning">Nota: il tuo browser potrebbe non supportare la funzione per impedire lo standby. Se lo schermo si spegne, prova con Chrome/Edge su Android o Safari aggiornato su iOS.</div>
+    <button onclick="startTimer()">Inizio</button>
+</div>
+
+<div class="container" id="timer-screen">
+    <h2>Tempo rimanente</h2>
+    <div id="timer-display">00:00</div>
+    <button onclick="endGame()">Interrompi</button>
+</div>
+
+<div class="container" id="end-screen">
+    <h2>Tempo scaduto!</h2>
+    <p>Ora potete accusare la spia. Quando siete pronti, cliccate per vedere la sua identità.</p>
+    <button onclick="revealSpies()">Vedi le Spie</button>
+    <div id="spy-reveal">
+        <p style="margin-top: 20px;">Le spie erano:</p>
+        <ul id="spy-list" class="spy-list"></ul>
+    </div>
+    <div id="word-and-category-reveal">
+        <p style="margin-top: 20px;">La parola segreta era:</p>
+        <span id="word-reveal" class="word-display"></span>
+        <p style="margin-top: 10px;">La categoria era:</p>
+        <span id="category-reveal" class="category-display"></span>
+    </div>
+    <button onclick="restartGame()">Ricomincia</button>
+</div>
+
+<script>
+    const paroleECategorie = {
+        'Luoghi': [
+            'Acquedotto','Alpe','Anfiteatro','Antartide','Arena','Arcipelago','Atollo','Borgo',
+            'Bosco','Canyon','Castello','Cattedrale','Caverna','Circo','Colosseo','Convento',
+            'Faro','Galleria','Ghiacciaio','Giungla','Isola','Lido','Miniera','Monumento',
+            'Molo','Oasi','Palude','Parco','Piazza','Piramide','Porto','Prato','Rifugio',
+            'Rovine','Santuario','Spiaggia','Stazione','Stadio','Teatro','Valle','Villa',
+            'Vulcano','Aeroporto','Biblioteca','Mercato','Ospedale','Scuola','Università',
+            'Museo','Hotel','Ponte'
+        ],
+        'Animali': [
+            'Gatto','Cane','Leone','Tigre','Elefante','Giraffa','Zebra','Panda','Lupo','Volpe',
+            'Orso','Cervo','Squalo','Delfino','Balena','Pinguino','Koala','Canguro','Gufo',
+            'Aquila','Falco','Pappagallo','Pellicano','Cigno','Anatra','Gallina','Topo','Ratto',
+            'Castoro','Lontra','Foca','Tricheco','Gabbiano','Rondine','Cavalletta','Formica',
+            'Ape','Farfalla','Ragno','Scorpione','Serpente','Lucertola','Tartaruga','Rana',
+            'Coccodrillo','Iguana','Camaleonte','Struzzo','Maiale','Mucca','Cavallo','Pecora',
+            'Capra','Asino','Coniglio','Scoiattolo','Riccio','Procione','Orango','Scimpanzé',
+            'Gorilla','Orca','Narvalo','Beluga','Pangolino','Armadillo','Bradipo','Ippopotamo',
+            'Rinoceronte','Ghepardo','Leopardo','Lince','Volpe artica','Tonno','Salmone','Merluzzo'
+        ],
+        'Cibo': [
+            'Pizza','Pasta','Sushi','Gelato','Tiramisù','Hamburger','Lasagne','Cioccolato','Torta',
+            'Pancakes','Risotto','Bistecca','Pollo','Pesce','Patate fritte','Zuppa','Insalata',
+            'Panino','Cornetto','Muffin','Biscotti','Formaggio','Prosciutto','Salame','Uova',
+            'Latte','Burro','Olio','Sale','Pepe','Zucchero','Farina','Riso','Pane','Focaccia',
+            'Carota','Pomodoro','Zucchina','Spinaci','Funghi','Olive','Arancia','Mela','Banana',
+            'Limone','Fragola','Miele','Ketchup','Maionese','Salsa','Tè','Caffè','Succo','Birra',
+            'Vino','Acqua'
+        ],
+        'Oggetti': [
+            'Libro','Tazza','Chiave','Telefono','Computer','Occhiali','Orologio','Forchetta',
+            'Cucchiaio','Coltello','Piatto','Bottiglia','Candela','Lampadina','Sedia','Tavolo',
+            'Armadio','Letto','Specchio','Sapone','Shampoo','Dentifricio','Asciugamano','Borsa',
+            'Zaino','Portafoglio','Guanti','Cappello','Cintura','Anello','Collana','Braccialetto',
+            'Orecchini','Ombrello','Matita','Penna','Gomma','Righello','Forbici','Colla','Quaderno',
+            'Fotocamera','Microfono','Cuffie','Console','Chiavetta USB','Hard disk','Monitor',
+            'Tastiera','Mouse','Stampante','Router','Cavo','Batteria','Caricabatterie','Torcia',
+            'Sveglia','Calendario','Termometro','Bussola','Mappa','Moneta','Passaporto',
+            'Carta di credito','Accendino','Padella','Frullatore','Forno','Lavatrice','Frigorifero',
+            'Aspirapolvere','Scopa','Martello','Cacciavite','Pinza','Trapano'
+        ],
+        'Natura': [
+            'Albero','Fiore','Fiume','Montagna','Sole','Luna','Vento','Sabbia','Neve','Ghiaccio',
+            'Arcobaleno','Fulmine','Temporale','Uragano','Terremoto','Vulcano','Cascata','Lago',
+            'Palude','Muschio','Felce','Erba','Foglia','Radice','Tronco','Petalo','Frutta',
+            'Stagione','Primavera','Estate','Autunno','Inverno','Alba','Tramonto','Cielo','Nuvola',
+            'Orizzonte','Stella','Pianeta','Cometa','Nebulosa','Onda'
+        ],
+        'Sport': [
+            'Calcio','Basket','Nuoto','Tennis','Pallavolo','Sci','Boxe','Ciclismo','Rugby',
+            'Atletica','Golf','Hockey','Baseball','Pallamano','Arrampicata','Canottaggio',
+            'Scherma','Judo','Karate','Taekwondo','Wrestling','Pattinaggio','Skateboard',
+            'Snowboard','Surf','Vela','Kayak','Ginnastica','Maratona','Triathlon','Decathlon',
+            'Salto in alto','Salto in lungo','Salto con l\'asta','Lancio del peso','Lancio del giavellotto',
+            'Lancio del disco','Arco','Racchetta','Palla','Campo','Stadio','Piscina','Pista',
+            'Bilanciere','Pesi','Manubri','Tapis roulant'
+        ],
+        'Mare': ['Cicciosamu', 'Pendola', 'Coso lubgo lì', 'Sagapò', 'pietrarimbombante', 'Cecilias', 'La Pante', 'Monasi', 'Fede', 'Sara', 'Ali', 'Toso', 'Simu', 'Ali Batti', 'Matte', 'Lore', 'Giula', 'Fra', 'Poggio', 'Ciuccia e Peppa', 'Cinghiale', 'Olimpia', 'Charlie Brown', 'Bajida', 'La Cava', 'La Suerte', 'le Vele', 'Ciambella di Sara', 'Sup di Lore', 'Ciambellone', 'Krapfen', 'Monticello', 'Meduse', 'Colombo', 'Il wifi dell\'una e l\'altra', 'Leo', 'Gaia', 'la Calu', 'La Conny', 'La Cincia', 'Cambusa', 'il lancio del Kiwei (pieno di droga)', 'Pompieri da Fra', 'Sari Balla', 'Pedro', 'il barbagheddon', 'il telone di Fede', 'arrampicarsi sulle gru con Matte', 'il Tony', 'La croce', 'Barboncino idrante', 'Pole Pole', 'Lord Nelson', 'Il Cinema di Spotti', 'Le Faggiane', 'Minigolf', 'Exalibur', 'Tommy Hilfiger', 'Noli', 'Isola Bergeggi'],
+    };
+
+    let players = [];
+    let currentPlayerIndex = 0;
+    let selectedCategory = '';
+    let selectedWord = '';
+    let spies = [];
+    let timerInterval;
+    let timeRemaining;
+
+    // Variabili per salvare le impostazioni
+    let savedNumPlayers = '';
+    let savedNumSpies = '';
+    let savedTimerDuration = '';
+    let savedCategories = [];
+
+    // Wake Lock sentinel
+    let wakeLock = null;
+
+    const introScreen = document.getElementById('intro-screen');
+    const gameScreen = document.getElementById('game-screen');
+    const roleScreen = document.getElementById('role-screen');
+    const startTimerScreen = document.getElementById('start-timer-screen');
+    const timerScreen = document.getElementById('timer-screen');
+    const endScreen = document.getElementById('end-screen');
+    const wakelockWarning = document.getElementById('wakelock-warning');
+
+    const numPlayersInput = document.getElementById('numPlayers');
+    const numSpiesInput = document.getElementById('numSpies');
+    const timerDurationInput = document.getElementById('timerDuration');
+    const categoryCheckboxes = document.querySelectorAll('input[name="category"]');
+    const currentPlayerText = document.getElementById('currentPlayerText');
+    const currentRolePlayerText = document.getElementById('currentRolePlayerText');
+    const roleTitle = document.getElementById('roleTitle');
+    const roleDetails = document.getElementById('roleDetails');
+    const timerDisplay = document.getElementById('timer-display');
+    const spyReveal = document.getElementById('spy-reveal');
+    const spyList = document.getElementById('spy-list');
+    const wordReveal = document.getElementById('word-reveal');
+    const categoryReveal = document.getElementById('category-reveal');
+    const wordAndCategoryReveal = document.getElementById('word-and-category-reveal');
+
+    window.onload = () => {
+        // Al caricamento, mostra la schermata iniziale, senza tentare di caricare i valori salvati
+        introScreen.style.display = 'block';
+    };
+
+    // Richiesta Wake Lock (Screen)
+    async function requestWakeLock() {
+        // Mostra avviso se API non supportata
+        if (!('wakeLock' in navigator)) {
+            console.warn('Wake Lock API non supportata in questo browser.');
+            wakelockWarning.style.display = 'block';
+            return;
+        }
+
+        try {
+            wakeLock = await navigator.wakeLock.request('screen');
+            // Nascondi eventuale avviso se ora è supportata
+            wakelockWarning.style.display = 'none';
+            // Riassegna gestione quando il lock viene rilasciato
+            wakeLock.addEventListener('release', () => {
+                // wakeLock rilasciata (es. per politiche del browser)
+                console.log('Wake Lock rilasciata.');
+            });
+            console.log('Wake Lock attivata.');
+        } catch (err) {
+            console.error(`Impossibile ottenere Wake Lock: ${err.name} - ${err.message}`);
+            wakelockWarning.style.display = 'block';
+        }
+    }
+
+    // Rilascia Wake Lock se presente
+    async function releaseWakeLock() {
+        try {
+            if (wakeLock) {
+                await wakeLock.release();
+                wakeLock = null;
+                console.log('Wake Lock rilasciata manualmente.');
+            }
+        } catch (err) {
+            console.warn('Errore durante il rilascio del Wake Lock:', err);
+        }
+    }
+
+    // Riprova a ottenere il lock quando la pagina ritorna visibile (alcuni browser lo revocano su background)
+    document.addEventListener('visibilitychange', async () => {
+        if (document.visibilityState === 'visible' && timeRemaining > 0) {
+            // se il gioco è in corso, riprova a ottenere il lock
+            await requestWakeLock();
+        }
+    });
+
+    function startGame() {
+        const numPlayers = parseInt(numPlayersInput.value, 10);
+        const numSpies = parseInt(numSpiesInput.value, 10);
+        let timerDuration = parseInt(timerDurationInput.value, 10);
+
+        if (numPlayers < 2 || numSpies < 1 || numSpies >= numPlayers) {
+            alert("Il numero di giocatori deve essere almeno 2. Il numero di spie deve essere almeno 1 e inferiore al numero di giocatori.");
+            return;
+        }
+
+        // Salvataggio dei dati attuali
+        savedNumPlayers = numPlayersInput.value;
+        savedNumSpies = numSpiesInput.value;
+        savedTimerDuration = timerDurationInput.value;
+        savedCategories = Array.from(categoryCheckboxes)
+            .filter(checkbox => checkbox.checked)
+            .map(checkbox => checkbox.value);
+
+        if (!timerDuration) {
+            timerDuration = numPlayers + 1;
+            timerDurationInput.value = timerDuration;
+        }
+
+        const selectedCategories = Array.from(categoryCheckboxes)
+            .filter(checkbox => checkbox.checked)
+            .map(checkbox => checkbox.value);
+
+        if (selectedCategories.length === 0) {
+            const allCategories = Object.keys(paroleECategorie);
+            selectedCategory = allCategories[Math.floor(Math.random() * allCategories.length)];
+        } else {
+            selectedCategory = selectedCategories[Math.floor(Math.random() * selectedCategories.length)];
+        }
+        
+        const words = paroleECategorie[selectedCategory];
+        selectedWord = words[Math.floor(Math.random() * words.length)];
+
+        players = Array(numPlayers).fill('Cittadino');
+        spies = [];
+
+        const playerIndices = Array.from({ length: numPlayers }, (_, i) => i);
+        playerIndices.sort(() => Math.random() - 0.5);
+
+        for (let i = 0; i < numSpies; i++) {
+            const spyIndex = playerIndices.pop();
+            players[spyIndex] = 'Spia';
+            spies.push(`Giocatore ${spyIndex + 1}`);
+        }
+
+        currentPlayerIndex = 0;
+        updateCurrentPlayerText();
+        introScreen.style.display = 'none';
+        gameScreen.style.display = 'block';
+    }
+
+    function updateCurrentPlayerText() {
+        currentPlayerText.textContent = `Giocatore ${currentPlayerIndex + 1}`;
+    }
+
+    function showRole() {
+        const role = players[currentPlayerIndex];
+
+        currentRolePlayerText.textContent = `Giocatore ${currentPlayerIndex + 1}`;
+        roleTitle.textContent = `Sei un ${role}`;
+        roleDetails.innerHTML = '';
+
+        if (role === 'Spia') {
+            roleTitle.classList.add('spy');
+            roleDetails.innerHTML = `<p><br>Categoria: <span class="category-display">${selectedCategory}</span></p>`;
+        } else {
+            roleTitle.classList.remove('spy');
+            roleDetails.innerHTML = `<p class="category-display">Categoria: ${selectedCategory}</p><p class="word-display">${selectedWord}</p>`;
+        }
+
+        gameScreen.style.display = 'none';
+        roleScreen.style.display = 'block';
+    }
+
+    function hideRole() {
+        if (currentPlayerIndex < players.length - 1) {
+            currentPlayerIndex++;
+            updateCurrentPlayerText();
+            roleScreen.style.display = 'none';
+            gameScreen.style.display = 'block';
+        } else {
+            roleScreen.style.display = 'none';
+            startTimerScreen.style.display = 'block';
+        }
+    }
+
+    function startTimer() {
+        const duration = parseInt(timerDurationInput.value, 10) * 60;
+        timeRemaining = duration;
+
+        startTimerScreen.style.display = 'none';
+        timerScreen.style.display = 'block';
+
+        updateTimerDisplay();
+
+        // richiedi il Wake Lock — chiamata consentita perché è attivata da un'azione utente (click)
+        requestWakeLock();
+
+        timerInterval = setInterval(() => {
+            timeRemaining--;
+            updateTimerDisplay();
+            if (timeRemaining <= 0) {
+                clearInterval(timerInterval);
+                endGame();
+            }
+        }, 1000);
+    }
+
+    function updateTimerDisplay() {
+        const minutes = Math.floor(timeRemaining / 60);
+        const seconds = timeRemaining % 60;
+        timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }
+
+    async function endGame() {
+        clearInterval(timerInterval);
+        // rilascia Wake Lock se presente
+        await releaseWakeLock();
+
+        timerScreen.style.display = 'none';
+        endScreen.style.display = 'block';
+        spyReveal.style.display = 'none';
+        wordAndCategoryReveal.style.display = 'none';
+    }
+
+    function revealSpies() {
+        spyList.innerHTML = '';
+        spies.forEach(spy => {
+            const li = document.createElement('li');
+            li.textContent = spy;
+            spyList.appendChild(li);
+        });
+        spyReveal.style.display = 'block';
+
+        wordReveal.textContent = selectedWord;
+        categoryReveal.textContent = selectedCategory;
+        wordAndCategoryReveal.style.display = 'block';
+    }
+
+    async function restartGame() {
+        // Reset completo dello stato del gioco
+        players = [];
+        currentPlayerIndex = 0;
+        selectedCategory = '';
+        selectedWord = '';
+        spies = [];
+        clearInterval(timerInterval);
+
+        // rilascia Wake Lock se presente
+        await releaseWakeLock();
+
+        // Nascondi tutte le schermate
+        introScreen.style.display = 'none';
+        gameScreen.style.display = 'none';
+        roleScreen.style.display = 'none';
+        startTimerScreen.style.display = 'none';
+        timerScreen.style.display = 'none';
+        endScreen.style.display = 'none';
+
+        // Carica i valori salvati
+        numPlayersInput.value = savedNumPlayers;
+        numSpiesInput.value = savedNumSpies;
+        timerDurationInput.value = savedTimerDuration;
+        
+        categoryCheckboxes.forEach(checkbox => {
+            checkbox.checked = savedCategories.includes(checkbox.value);
+        });
+        
+        introScreen.style.display = 'block';
+    }
+</script>
+
+</body>
+</html>
