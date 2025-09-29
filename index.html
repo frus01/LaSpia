@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="it">
 <head>
@@ -25,6 +26,7 @@
             box-shadow: 0 4px 8px rgba(0,0,0,0.5);
             max-width: 90%;
             width: 400px;
+            position: relative; /* permette posizionamento assoluto del pulsante regole */
         }
         h1 {
             color: #4CAF50;
@@ -114,11 +116,84 @@
             font-size: 0.9em;
             color: #ffcc00;
         }
+
+        /* STILE PER IL PULSANTE "REGOLE" (70px di larghezza, a destra) */
+        .rules-button {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: #4CAF50;
+            color: #fff;
+            border: none;
+            width: 70px;      /* ora occupa 70px come richiesto */
+            height: 30px;
+            padding: 0 6px;
+            border-radius: 14px;  /* pill leggero */
+            font-size: 0.9em;
+            cursor: pointer;
+            line-height: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .rules-button:hover { background: #45a049; }
+
+        /* MODALE REGOLE - SISTEMAZIONI PER MOBILE (scroll, max-height, posizionamento in alto) */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            display: none; /* mostrata via JS */
+            align-items: flex-start; /* posiziona la modale in alto (evita che la X finisca fuori schermo) */
+            justify-content: center;
+            padding: 20px; /* spazio intorno alla modale su mobile */
+            z-index: 1000;
+            overflow: auto; /* permette lo scroll dell'overlay se necessario */
+        }
+        .modal {
+            background: #2b2b2b;
+            color: #eee;
+            width: 100%;
+            max-width: 600px;
+            border-radius: 8px;
+            padding: 20px 24px 28px 24px;
+            position: relative;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.7);
+            text-align: left;
+            max-height: calc(100vh - 40px); /* lascia spazio top/bottom e impedisce overflow fuori viewport */
+            overflow: auto; /* rende il contenuto scrollabile se troppo alto */
+            margin: 0 auto; /* centrata orizzontalmente */
+        }
+        .modal .close-btn {
+            position: absolute;
+            top: 8px;
+            left: 8px; /* X in alto a sinistra (come richiesto) */
+            background: transparent;
+            color: #eee;
+            border: none;
+            font-size: 1.2em;
+            cursor: pointer;
+            z-index: 10;
+        }
+        .modal h3 {
+            margin-top: 6px;
+        }
+        .modal p, .modal li {
+            color: #ddd;
+            line-height: 1.4;
+            margin: 6px 0;
+        }
+
+        /* piccola ottimizzazione: assicurati che la X sia sempre visibile anche se l'utente fa pinch-zoom */
+        @media (max-width: 420px) {
+            .modal { padding-top: 40px; } /* lascia spazio visibile per la X */
+        }
     </style>
 </head>
 <body>
 
 <div class="container" id="intro-screen">
+    <button class="rules-button" onclick="openRules()" aria-label="Regole">Regole</button>
     <h1>Gioco della Spia</h1>
     <p>Inserisci il numero di giocatori e quante spie volete avere.</p>
     <input type="number" id="numPlayers" placeholder="Numero di giocatori" min="2" required>
@@ -135,9 +210,40 @@
         <label><input type="checkbox" name="category" value="Oggetti" checked> Oggetti</label>
         <label><input type="checkbox" name="category" value="Natura" checked> Natura</label>
         <label><input type="checkbox" name="category" value="Sport" checked> Sport</label>
-        <label><input type="checkbox" name="category" value="Meme Spotorno" checked> Meme Spotorno</label>
+        <label><input type="checkbox" name="category" value="Meme Spotty"> Meme Spotty</label>
     </div>
     <button onclick="startGame()">Inizia il gioco</button>
+</div>
+
+<!-- MODALE DELLE REGOLE -->
+<div class="modal-overlay" id="rules-modal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="rules-title">
+        <button class="close-btn" onclick="closeRules()" aria-label="Chiudi">✕</button>
+        <h3 id="rules-title">Regole</h3>
+
+        <p><strong>Ruoli:</strong></p>
+        <p><strong>Cittadini:</strong> conoscono la parola e devono scoprire le spie.</p>
+        <p><strong>Spie:</strong> conoscono solo il tema generale e devono indovinare la parola.</p>
+
+        <p><strong>Preparazione:</strong></p>
+        <p>Ogni giocatore guarda il proprio ruolo in privato.<br>
+        Poi nasconde il ruolo e passa al giocatore successivo.<br>
+        Terminata la distribuzione dei ruoli, inizia il gioco.</p>
+
+        <p><strong>Turni di gioco:</strong></p>
+        <ul>
+            <li>Un giocatore a scelta inizia facendo una domanda a un altro giocatore.</li>
+            <li>Il giocatore interrogato deve fare a sua volta una domanda a un altro, non a chi gliel’ha fatta.</li>
+            <li>Si procede così fino al consenso sul voto delle spie o fino alla fine del timer.</li>
+            <li>Quando il timer finisce, non si possono più fare domande.</li>
+            <li>Non sono permesse domande sulla struttura grammaticale della parola.</li>
+        </ul>
+
+        <p><strong>Vittoria:</strong></p>
+        <p>Per scoprire le spie si vota.<br>
+        Se anche una sola spia non viene individuata → vincono le spie.<br>
+        Se tutte le spie vengono scoperte: ogni spia ha una possibilità di indovinare la parola. Se non indovinano → vincono i cittadini.</p>
+    </div>
 </div>
 
 <div class="container" id="game-screen">
@@ -240,7 +346,7 @@
             'Lancio del disco','Arco','Racchetta','Palla','Campo','Stadio','Piscina','Pista',
             'Bilanciere','Pesi','Manubri','Tapis roulant'
         ],
-        'Meme Spotorno': ['Cicciosamu', 'Pendola', 'Coso lubgo lì', 'Sagapò', 'pietrarimbombante', 'Cecilias', 'La Pante', 'Monasi', 'Fede', 'Sara', 'Ali', 'Toso', 'Simu', 'Ali Batti', 'Matte', 'Lore', 'Giula', 'Fra', 'Poggio', 'Ciuccia e Peppa', 'Cinghiale', 'Olimpia', 'Charlie Brown', 'Bajida', 'La Cava', 'La Suerte', 'le Vele', 'Ciambella di Sara', 'Sup di Lore', 'Ciambellone', 'Krapfen', 'Monticello', 'Meduse', 'Colombo', 'Il wifi dell\'una e l\'altra', 'Leo', 'Gaia', 'la Calu', 'La Conny', 'La Cincia', 'Cambusa', 'il lancio del Kiwei (pieno di droga)', 'Pompieri da Fra', 'Sari Balla', 'Pedro', 'il barbagheddon', 'il telone di Fede', 'arrampicarsi sulle gru con Matte', 'il Tony', 'La croce', 'Barboncino idrante', 'Pole Pole', 'Lord Nelson', 'Il Cinema di Spotti', 'Le Faggiane', 'Minigolf', 'Exalibur', 'Tommy Hilfiger', 'Noli', 'Isola Bergeggi'],
+        'Meme Spotty': ['Cicciosamu', 'Pendola', 'Coso lubgo lì', 'Sagapò', 'pietrarimbombante', 'Cecilias', 'La Pante', 'Monasi', 'Fede', 'Sara', 'Ali', 'Toso', 'Simu', 'Ali Batti', 'Matte', 'Lore', 'Giula', 'Fra', 'Poggio', 'Ciuccia e Peppa', 'Cinghiale', 'Olimpia', 'Charlie Brown', 'Bajida', 'La Cava', 'La Suerte', 'le Vele', 'Ciambella di Sara', 'Sup di Lore', 'Ciambellone', 'Krapfen', 'Monticello', 'Meduse', 'Colombo', 'Il wifi dell\'una e l\'altra', 'Leo', 'Gaia', 'la Calu', 'La Conny', 'La Cincia', 'Cambusa', 'il lancio del Kiwei (pieno di droga)', 'Pompieri da Fra', 'Sari Balla', 'Pedro', 'il barbagheddon', 'il telone di Fede', 'arrampicarsi sulle gru con Matte', 'il Tony', 'La croce', 'Barboncino idrante', 'Pole Pole', 'Lord Nelson', 'Il Cinema di Spotti', 'Le Faggiane', 'Minigolf', 'Exalibur', 'Tommy Hilfiger', 'Noli', 'Isola Bergeggi'],
     };
 
     let players = [];
@@ -283,10 +389,28 @@
     const categoryReveal = document.getElementById('category-reveal');
     const wordAndCategoryReveal = document.getElementById('word-and-category-reveal');
 
+    // ELEMENTI MODALE REGOLE
+    const rulesModal = document.getElementById('rules-modal');
+
     window.onload = () => {
         // Al caricamento, mostra la schermata iniziale, senza tentare di caricare i valori salvati
         introScreen.style.display = 'block';
     };
+
+    // FUNZIONI APERTURA/CHIUSURA REGOLE
+    function openRules() {
+        rulesModal.style.display = 'flex';
+        // impedisce lo scroll della pagina sottostante se necessario
+        document.body.style.overflow = 'hidden';
+    }
+    function closeRules() {
+        rulesModal.style.display = 'none';
+        document.body.style.overflow = '';
+    }
+    // chiude anche se si clicca fuori dalla modale (opzionale)
+    rulesModal.addEventListener('click', (e) => {
+        if (e.target === rulesModal) closeRules();
+    });
 
     // Richiesta Wake Lock (Screen)
     async function requestWakeLock() {
@@ -512,3 +636,4 @@
 
 </body>
 </html>
+```
